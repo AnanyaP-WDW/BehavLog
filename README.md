@@ -33,6 +33,22 @@ npm run dev
 npm run build
 ```
 
+## Desktop (Tauri)
+
+Prerequisites:
+- Rust toolchain (stable) and platform-specific Tauri dependencies
+
+```bash
+# Run the desktop app in dev mode (starts Vite + Tauri shell)
+npm run tauri:dev
+
+# Build desktop installers (macOS/Windows)
+npm run tauri:build
+```
+
+Notes:
+- The app uses IndexedDB; data persists per-user per-app in the Tauri webview.
+
 ## Keyboard Shortcuts
 
 | Key | Action |
