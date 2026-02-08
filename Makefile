@@ -76,7 +76,11 @@ test-watch:
 # Run tests with coverage report in Docker container
 test-coverage:
 	docker build -f Dockerfile.test -t mouse-annotator-test .
-	docker run --rm mouse-annotator-test npm run test:coverage
+	mkdir -p coverage
+	docker run --rm \
+		-e COVERAGE_DIR=/out/report \
+		-v "$(CURDIR)/coverage:/out" \
+		mouse-annotator-test npm run test:coverage
 
 # ============================================
 # Local Development Commands
