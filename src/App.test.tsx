@@ -60,9 +60,7 @@ vi.mock('./hooks/useBehaviorState', () => ({
 }));
 
 vi.mock('./hooks/useKeyboardShortcuts', () => ({
-  useKeyboardShortcuts: () => ({
-    handleSave: vi.fn(),
-  }),
+  useKeyboardShortcuts: vi.fn(),
 }));
 
 describe('App', () => {
@@ -85,7 +83,7 @@ describe('App', () => {
     );
     
     expect(screen.getByRole('button', { name: /upload video/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /export/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /library/i })).toBeInTheDocument();
   });
 
   it('renders the KeypointSidebar component', () => {
@@ -150,15 +148,14 @@ describe('App', () => {
     expect(frameElements.length).toBeGreaterThan(0);
   });
 
-  it('disables export when no video is loaded', () => {
+  it('does not render export in the header', () => {
     render(
       <SettingsProvider>
         <App />
       </SettingsProvider>
     );
     
-    const exportBtn = screen.getByRole('button', { name: /export/i });
-    expect(exportBtn).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /export/i })).not.toBeInTheDocument();
   });
 
   it('renders with correct base styling', () => {

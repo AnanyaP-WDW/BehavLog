@@ -1,6 +1,5 @@
-import { useEffect, useCallback } from 'react';
-import { exportAnnotations } from '../utils/export';
-import type { BehaviorDefinition, BehaviorInstance, Keypoint, KeypointDefinition } from '../types';
+import { useEffect } from 'react';
+import type { BehaviorDefinition, KeypointDefinition } from '../types';
 
 interface UseKeyboardShortcutsProps {
   setActiveKeypoint: (index: number) => void;
@@ -8,13 +7,8 @@ interface UseKeyboardShortcutsProps {
   toggleVisibility: () => void;
   copyFromPrevious: () => void;
   removeKeypoint: () => void;
-  videoName: string;
-  getResolution: () => [number, number];
-  getAllAnnotations: () => Record<number, Record<string, Keypoint>>;
-  setSaveStatus: (status: string) => void;
   keypointDefinitions: KeypointDefinition[];
   behaviorDefinitions: BehaviorDefinition[];
-  behaviors: BehaviorInstance[];
   toggleBehaviorRecording: (behaviorId: string) => void;
   stopBehaviorRecording: () => void;
   undoBehaviors: () => void;
@@ -27,25 +21,13 @@ export function useKeyboardShortcuts({
   toggleVisibility,
   copyFromPrevious,
   removeKeypoint,
-  videoName,
-  getResolution,
-  getAllAnnotations,
-  setSaveStatus,
   keypointDefinitions,
   behaviorDefinitions,
-  behaviors,
   toggleBehaviorRecording,
   stopBehaviorRecording,
   undoBehaviors,
   redoBehaviors,
 }: UseKeyboardShortcutsProps) {
-  const handleSave = useCallback(() => {
-    if (!videoName) return;
-    exportAnnotations(videoName, getResolution(), getAllAnnotations(), behaviorDefinitions, behaviors);
-    setSaveStatus('Exported!');
-    setTimeout(() => setSaveStatus(''), 2000);
-  }, [videoName, getResolution, getAllAnnotations, behaviorDefinitions, behaviors, setSaveStatus]);
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if typing in an input
@@ -78,12 +60,6 @@ export function useKeyboardShortcuts({
       if (key === 'y' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         redoBehaviors();
-        return;
-      }
-
-      if (key === 's' && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        handleSave();
         return;
       }
 
@@ -136,7 +112,6 @@ export function useKeyboardShortcuts({
     toggleVisibility,
     copyFromPrevious,
     removeKeypoint,
-    handleSave,
     keypointDefinitions,
     behaviorDefinitions,
     toggleBehaviorRecording,
@@ -144,6 +119,4 @@ export function useKeyboardShortcuts({
     undoBehaviors,
     redoBehaviors,
   ]);
-
-  return { handleSave };
 }

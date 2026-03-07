@@ -1,18 +1,37 @@
 import { useState, useEffect, useCallback } from 'react';
-import { db, type StoredVideo, type StoredAnnotation, type StoredBehaviors } from '../utils/database';
-import type { AnnotationData, BehaviorDefinition, BehaviorInstance } from '../types';
+import { db, type StoredAnnotation, type StoredBehaviors } from '../utils/database';
+import type {
+  AnnotationData,
+  BehaviorDefinition,
+  BehaviorInstance,
+  ProjectSummary,
+  StoredVideoRecord,
+} from '../types';
 
 export function useVideoStorage() {
-  const [videos, setVideos] = useState<StoredVideo[]>([]);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [videos, setVideos] = useState<StoredVideoRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize database and load videos
+  const loadProjects = useCallback(async () => {
+    try {
+      const allProjects = await db.getProjects();
+      allProjects.sort(
+        (a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
+      );
+      setProjects(allProjects);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load projects');
+    }
+  }, []);
+
   useEffect(() => {
     const initDB = async () => {
       try {
         await db.init();
-        await loadVideos();
+        await loadProjects();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to initialize database');
       } finally {
@@ -21,41 +40,79 @@ export function useVideoStorage() {
     };
 
     initDB();
-  }, []);
+  }, [loadProjects]);
 
-  const loadVideos = useCallback(async () => {
+  const loadVideos = useCallback(async (projectId?: string) => {
+    if (!projectId) {
+      setVideos([]);
+      return;
+    }
+
     try {
-      const allVideos = await db.getAllVideos();
-      // Sort by upload date, newest first
-      allVideos.sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime());
-      setVideos(allVideos);
+      setIsLoading(true);
+      const projectVideos = await db.getVideosByProject(projectId);
+      projectVideos.sort(
+        (a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()
+      );
+      setVideos(projectVideos);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load videos');
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
+  const createProject = useCallback(async (name: string): Promise<string | null> => {
+    const projectName = name.trim();
+    if (!projectName) {
+      setError('Project name is required');
+      return null;
+    }
+
+    try {
+      setError(null);
+      const projectId = await db.createProject(projectName);
+      await loadProjects();
+      return projectId;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create project');
+      return null;
+    }
+  }, [loadProjects]);
+
+  const deleteProject = useCallback(async (projectId: string): Promise<boolean> => {
+    try {
+      setError(null);
+      await db.deleteProject(projectId);
+      await loadProjects();
+      setVideos((currentVideos) =>
+        currentVideos.filter((video) => video.projectId !== projectId)
+      );
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete project');
+      return false;
+    }
+  }, [loadProjects]);
+
   const storeVideo = useCallback(async (
+    projectId: string,
     file: File,
     videoElement: HTMLVideoElement
   ): Promise<string | null> => {
     try {
       setError(null);
-      
-      // Generate thumbnail
-      const thumbnail = await db.generateThumbnail(videoElement);
-      
-      const videoData: Omit<StoredVideo, 'id'> = {
+
+      const videoData = {
         name: file.name,
         blob: file,
-        uploadDate: new Date(),
         duration: videoElement.duration,
-        resolution: [videoElement.videoWidth, videoElement.videoHeight],
-        thumbnail,
+        resolution: [videoElement.videoWidth, videoElement.videoHeight] as [number, number],
       };
 
-      const videoId = await db.storeVideo(videoData);
-      await loadVideos(); // Refresh the list
+      const videoId = await db.storeVideo(projectId, videoData);
+      await Promise.all([loadProjects(), loadVideos(projectId)]);
       return videoId;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to store video');
@@ -66,8 +123,12 @@ export function useVideoStorage() {
   const deleteVideo = useCallback(async (id: string): Promise<boolean> => {
     try {
       setError(null);
+      const video = await db.getVideo(id);
       await db.deleteVideo(id);
-      await loadVideos(); // Refresh the list
+      await loadProjects();
+      if (video) {
+        await loadVideos(video.projectId);
+      }
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete video');
@@ -75,7 +136,7 @@ export function useVideoStorage() {
     }
   }, [loadVideos]);
 
-  const getVideoUrl = useCallback((video: StoredVideo): string => {
+  const getVideoUrl = useCallback((video: StoredVideoRecord): string => {
     return URL.createObjectURL(video.blob);
   }, []);
 
@@ -145,10 +206,25 @@ export function useVideoStorage() {
     }
   }, []);
 
+  const loadVideoExportData = useCallback(async (videoId: string) => {
+    const [annotationData, storedBehaviors] = await Promise.all([
+      loadAnnotations(videoId),
+      loadBehaviors(videoId),
+    ]);
+
+    return {
+      annotationData,
+      storedBehaviors,
+    };
+  }, [loadAnnotations, loadBehaviors]);
+
   return {
+    projects,
     videos,
     isLoading,
     error,
+    createProject,
+    deleteProject,
     storeVideo,
     deleteVideo,
     getVideoUrl,
@@ -156,6 +232,8 @@ export function useVideoStorage() {
     loadAnnotations,
     saveBehaviors,
     loadBehaviors,
+    loadVideoExportData,
+    refreshProjects: loadProjects,
     refreshVideos: loadVideos,
   };
 }

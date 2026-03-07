@@ -11,17 +11,22 @@ import { useAnnotationState } from './hooks/useAnnotationState';
 import { useBehaviorState } from './hooks/useBehaviorState';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useSettings } from './contexts/SettingsContext';
+import type { StoredVideoRecord } from './types';
+
+type LibraryMode = 'browse' | 'selectProjectForUpload';
 
 function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
+  const [libraryMode, setLibraryMode] = useState<LibraryMode>('browse');
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [pendingUpload, setPendingUpload] = useState<File | null>(null);
   const [selectedBehaviorId, setSelectedBehaviorId] = useState<string | null>(null);
   const { keypointDefinitions, behaviorDefinitions, allowBehaviorOverlap } = useSettings();
 
   const {
     videoUrl,
-    videoName,
     videoId,
     currentFrame,
     totalFrames,
@@ -35,7 +40,6 @@ function App() {
     setActiveKeypoint,
     setZoom,
     setShowSkeleton,
-    setSaveStatus,
     setKeypointSize,
     setShowKeypointText,
     handleVideoUpload,
@@ -46,10 +50,8 @@ function App() {
     copyFromPrevious,
     removeKeypoint,
     loadStoredVideo,
-    getResolution,
-    getAllAnnotations,
     seekFrame,
-  } = useAnnotationState(videoRef, keypointDefinitions);
+  } = useAnnotationState(videoRef, keypointDefinitions, activeProjectId);
 
   const {
     behaviors,
@@ -68,30 +70,65 @@ function App() {
   } = useBehaviorState({ videoId, behaviorDefinitions, allowBehaviorOverlap });
 
   const handleVideoUploadWithBehaviors = (file: File) => {
+    if (!activeProjectId) {
+      setPendingUpload(file);
+      setLibraryMode('selectProjectForUpload');
+      setShowLibrary(true);
+      return;
+    }
+
     resetBehaviors();
     setSelectedBehaviorId(null);
     handleVideoUpload(file);
   };
 
-  const handleLoadStoredVideo = async (video: any, videoUrlToLoad: string) => {
+  const handleLoadStoredVideo = async (video: StoredVideoRecord, videoUrlToLoad: string) => {
+    setActiveProjectId(video.projectId);
     await loadStoredVideo(video, videoUrlToLoad);
     await loadStoredBehaviors(video.id);
     setSelectedBehaviorId(null);
   };
 
-  const { handleSave } = useKeyboardShortcuts({
+  const handleOpenLibrary = () => {
+    setLibraryMode('browse');
+    setShowLibrary(true);
+  };
+
+  const handleCloseLibrary = () => {
+    setShowLibrary(false);
+    setPendingUpload(null);
+    setLibraryMode('browse');
+  };
+
+  const handleProjectDeleted = (projectId: string) => {
+    if (activeProjectId === projectId) {
+      setActiveProjectId(null);
+    }
+  };
+
+  const handleProjectUploadSelection = (projectId: string) => {
+    setActiveProjectId(projectId);
+
+    if (!pendingUpload) {
+      return;
+    }
+
+    resetBehaviors();
+    setSelectedBehaviorId(null);
+    handleVideoUpload(pendingUpload);
+    setPendingUpload(null);
+    setLibraryMode('browse');
+    setShowLibrary(false);
+  };
+
+  useKeyboardShortcuts({
     setActiveKeypoint,
     navigateFrame,
     toggleVisibility,
     copyFromPrevious,
     removeKeypoint,
-    videoName,
-    getResolution,
-    getAllAnnotations,
-    setSaveStatus,
     keypointDefinitions,
     behaviorDefinitions,
-    behaviors,
     toggleBehaviorRecording: (behaviorId) => toggleRecording(behaviorId, currentFrame),
     stopBehaviorRecording: () => stopRecording(currentFrame),
     undoBehaviors,
@@ -102,11 +139,9 @@ function App() {
     <div className="h-screen w-screen bg-slate-900 text-white flex flex-col overflow-hidden">
       <Header
         onVideoUpload={handleVideoUploadWithBehaviors}
-        onExport={handleSave}
         onOpenSettings={() => setShowSettings(true)}
-        onOpenLibrary={() => setShowLibrary(true)}
+        onOpenLibrary={handleOpenLibrary}
         saveStatus={saveStatus}
-        hasVideo={!!videoUrl}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -193,11 +228,19 @@ function App() {
         onClose={() => setShowSettings(false)}
       />
 
-      <VideoGallery
-        isOpen={showLibrary}
-        onClose={() => setShowLibrary(false)}
-        onSelectVideo={handleLoadStoredVideo}
-      />
+      {showLibrary && (
+        <VideoGallery
+          isOpen={showLibrary}
+          onClose={handleCloseLibrary}
+          onSelectVideo={handleLoadStoredVideo}
+          activeProjectId={activeProjectId}
+          mode={libraryMode}
+          pendingUploadName={pendingUpload?.name ?? null}
+          onSelectProject={setActiveProjectId}
+          onProjectDeleted={handleProjectDeleted}
+          onProjectReadyForUpload={handleProjectUploadSelection}
+        />
+      )}
     </div>
   );
 }

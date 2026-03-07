@@ -48,4 +48,45 @@ export interface AnnotationDataWithBehaviors extends AnnotationData {
   behaviors: BehaviorInstance[];
 }
 
+export type VideoAnnotationState = 'not_started' | 'in_progress' | 'completed';
+
+export interface ProjectRecord {
+  id: string;
+  name: string;
+  createdAt: Date;
+  lastModified: Date;
+}
+
+export interface ProjectSummary extends ProjectRecord {
+  videoCount: number;
+}
+
+export interface StoredVideoRecord {
+  id: string;
+  projectId: string;
+  name: string;
+  blob: Blob;
+  createdAt: Date;
+  lastModified: Date;
+  duration: number;
+  resolution: [number, number];
+  annotationState: VideoAnnotationState;
+}
+
+export interface ProjectExportVideo {
+  id: string;
+  name: string;
+  createdAt: Date;
+  lastModified: Date;
+  duration: number;
+  resolution: [number, number];
+  annotationState: VideoAnnotationState;
+  annotationData: AnnotationDataWithBehaviors;
+}
+
+export interface ProjectExportData {
+  project: ProjectSummary;
+  videos: ProjectExportVideo[];
+}
+
 export type SkeletonConnection = [string, string];

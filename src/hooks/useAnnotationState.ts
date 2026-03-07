@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect, type RefObject } from 'react';
-import type { Keypoint, KeypointDefinition } from '../types';
+import type { Keypoint, KeypointDefinition, StoredVideoRecord } from '../types';
 import { FPS } from '../constants/keypoints';
 import { useVideoStorage } from './useVideoStorage';
 
 export function useAnnotationState(
   videoRef: RefObject<HTMLVideoElement | null>,
-  keypointDefinitions: KeypointDefinition[]
+  keypointDefinitions: KeypointDefinition[],
+  activeProjectId: string | null
 ) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoName, setVideoName] = useState<string>('');
@@ -43,9 +44,10 @@ export function useAnnotationState(
       setTotalFrames(frames);
       
       // Store video in database if it's a new upload
-      if (!videoId && videoName) {
+      if (!videoId && videoName && videoUrl && activeProjectId) {
         try {
           const storedVideoId = await storeVideo(
+            activeProjectId,
             new File([await fetch(videoUrl!).then(r => r.blob())], videoName),
             videoRef.current
           );
@@ -59,7 +61,7 @@ export function useAnnotationState(
         }
       }
     }
-  }, [videoRef, videoId, videoName, videoUrl, storeVideo]);
+  }, [activeProjectId, videoRef, videoId, videoName, videoUrl, storeVideo]);
 
   const saveCurrentFrame = useCallback(() => {
     if (Object.keys(keypoints).length > 0) {
@@ -209,12 +211,12 @@ export function useAnnotationState(
     setTimeout(() => setSaveStatus(''), 2000);
   }, [activeKeypoint, keypointDefinitions]);
 
-  const loadStoredVideo = useCallback(async (video: any, videoUrl: string) => {
+  const loadStoredVideo = useCallback(async (video: StoredVideoRecord, storedVideoUrl: string) => {
     if (videoUrl) {
       URL.revokeObjectURL(videoUrl);
     }
     
-    setVideoUrl(videoUrl);
+    setVideoUrl(storedVideoUrl);
     setVideoName(video.name);
     setVideoId(video.id);
     setCurrentFrame(0);
@@ -236,7 +238,7 @@ export function useAnnotationState(
     } catch (error) {
       console.error('Failed to load annotations:', error);
     }
-  }, [loadAnnotations]);
+  }, [loadAnnotations, videoUrl]);
 
   const getAllAnnotations = useCallback(() => {
     // Include current frame keypoints
