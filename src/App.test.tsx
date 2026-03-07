@@ -35,8 +35,6 @@ vi.mock('./hooks/useAnnotationState', () => ({
     removeKeypoint: vi.fn(),
     loadStoredVideo: vi.fn(),
     getResolution: vi.fn(() => [0, 0]),
-    getAnnotationCount: vi.fn(() => 0),
-    getProgress: vi.fn(() => 0),
     getAllAnnotations: vi.fn(() => ({})),
     saveCurrentFrame: vi.fn(),
     autoSaveAnnotations: vi.fn(),
@@ -98,7 +96,6 @@ describe('App', () => {
     );
     
     expect(screen.getByText('Keypoints')).toBeInTheDocument();
-    expect(screen.getByText('Progress')).toBeInTheDocument();
     expect(screen.getByText('Keyboard Shortcuts')).toBeInTheDocument();
   });
 

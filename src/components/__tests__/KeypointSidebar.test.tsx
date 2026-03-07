@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { KeypointSidebar } from '../KeypointSidebar';
 import { KEYPOINT_DEFINITIONS } from '../../constants/keypoints';
+import { DEFAULT_BEHAVIOR_DEFINITIONS } from '../../constants/behaviors';
 import type { Keypoint } from '../../types';
 
 describe('KeypointSidebar', () => {
@@ -9,10 +10,9 @@ describe('KeypointSidebar', () => {
     activeKeypoint: 0,
     setActiveKeypoint: vi.fn(),
     keypoints: {} as Record<string, Keypoint>,
-    annotationCount: 0,
-    progress: 0,
     onRemoveKeypoint: vi.fn(),
     keypointDefinitions: KEYPOINT_DEFINITIONS,
+    behaviorDefinitions: DEFAULT_BEHAVIOR_DEFINITIONS,
   };
 
   beforeEach(() => {
@@ -80,73 +80,43 @@ describe('KeypointSidebar', () => {
   });
 
   describe('Keyboard Shortcuts Panel', () => {
-    it('renders Keyboard Shortcuts heading', () => {
+    function renderAndExpand() {
+      render(<KeypointSidebar {...defaultProps} />);
+      fireEvent.click(screen.getByText('Keyboard Shortcuts'));
+    }
+
+    it('renders collapsed by default', () => {
       render(<KeypointSidebar {...defaultProps} />);
       expect(screen.getByText('Keyboard Shortcuts')).toBeInTheDocument();
+      expect(screen.queryByText('Select keypoint')).not.toBeInTheDocument();
     });
 
-    it('displays shortcut for selecting keypoint', () => {
-      render(<KeypointSidebar {...defaultProps} />);
+    it('expands on click and shows all shortcuts', () => {
+      renderAndExpand();
       expect(screen.getByText('Select keypoint')).toBeInTheDocument();
-    });
-
-    it('displays shortcut for placing point', () => {
-      render(<KeypointSidebar {...defaultProps} />);
       expect(screen.getByText('Place point')).toBeInTheDocument();
-    });
-
-    it('displays shortcut for next frame', () => {
-      render(<KeypointSidebar {...defaultProps} />);
       expect(screen.getByText('Next frame')).toBeInTheDocument();
-    });
-
-    it('displays shortcut for previous frame', () => {
-      render(<KeypointSidebar {...defaultProps} />);
       expect(screen.getByText('Prev frame')).toBeInTheDocument();
-    });
-
-    it('displays shortcut for toggle visible', () => {
-      render(<KeypointSidebar {...defaultProps} />);
       expect(screen.getByText('Toggle visible')).toBeInTheDocument();
-    });
-
-    it('displays shortcut for copy previous', () => {
-      render(<KeypointSidebar {...defaultProps} />);
       expect(screen.getByText('Copy previous')).toBeInTheDocument();
-    });
-
-    it('displays shortcut for export', () => {
-      render(<KeypointSidebar {...defaultProps} />);
       expect(screen.getByText('Export')).toBeInTheDocument();
     });
-  });
 
-  describe('Progress Panel', () => {
-    it('renders Progress label', () => {
-      render(<KeypointSidebar {...defaultProps} />);
-      expect(screen.getByText('Progress')).toBeInTheDocument();
+    it('shows behavior shortcuts when expanded', () => {
+      renderAndExpand();
+      DEFAULT_BEHAVIOR_DEFINITIONS.forEach((b) => {
+        expect(screen.getByText(b.name)).toBeInTheDocument();
+      });
+      expect(screen.getByText('Stop recording')).toBeInTheDocument();
+      expect(screen.getByText('Undo')).toBeInTheDocument();
+      expect(screen.getByText('Redo')).toBeInTheDocument();
     });
 
-    it('displays progress percentage', () => {
-      render(<KeypointSidebar {...defaultProps} progress={45} />);
-      expect(screen.getByText('45%')).toBeInTheDocument();
-    });
-
-    it('displays annotation count', () => {
-      render(<KeypointSidebar {...defaultProps} annotationCount={10} />);
-      expect(screen.getByText('10 frames annotated')).toBeInTheDocument();
-    });
-
-    it('displays zero progress correctly', () => {
-      render(<KeypointSidebar {...defaultProps} progress={0} annotationCount={0} />);
-      expect(screen.getByText('0%')).toBeInTheDocument();
-      expect(screen.getByText('0 frames annotated')).toBeInTheDocument();
-    });
-
-    it('displays 100% progress correctly', () => {
-      render(<KeypointSidebar {...defaultProps} progress={100} annotationCount={300} />);
-      expect(screen.getByText('100%')).toBeInTheDocument();
-      expect(screen.getByText('300 frames annotated')).toBeInTheDocument();
+    it('collapses when clicked again', () => {
+      renderAndExpand();
+      expect(screen.getByText('Select keypoint')).toBeInTheDocument();
+      fireEvent.click(screen.getByText('Keyboard Shortcuts'));
+      expect(screen.queryByText('Select keypoint')).not.toBeInTheDocument();
     });
   });
 });

@@ -1,6 +1,7 @@
-# Mouse Behavior Annotation Tool
+# BehavLog
+## A lightweight general purpose animal keypoint and behavior annotation tool
 
-A web-based annotation tool for creating mouse behavior training data with keypoint labeling.
+A web-based annotation tool for creating rat behavior training data with keypoint labeling.
 
 ## Features
 
@@ -9,6 +10,7 @@ A web-based annotation tool for creating mouse behavior training data with keypo
 - **Skeleton visualization**: Real-time overlay with gradient connections
 - **Export to JSON**: Training-ready format with coordinates, visibility, and confidence scores
 - **Productivity shortcuts**: Copy from previous frame, toggle visibility, quick keypoint selection
+- **Rat behavior annotation**: Frame-by-frame labeling for rat behavior analysis
 
 ## Quick Start with Docker
 
@@ -79,7 +81,7 @@ Notes:
 
 ```json
 {
-  "video_name": "mouse_trial_001.mp4",
+  "video_name": "rat_trial_001.mp4",
   "fps": 30,
   "resolution": [640, 480],
   "annotations": [

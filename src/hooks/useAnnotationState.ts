@@ -238,15 +238,6 @@ export function useAnnotationState(
     }
   }, [loadAnnotations]);
 
-  const getAnnotationCount = useCallback(() => {
-    return Object.keys(annotations).length;
-  }, [annotations]);
-
-  const getProgress = useCallback(() => {
-    if (totalFrames === 0) return 0;
-    return Math.round((Object.keys(annotations).length / totalFrames) * 100);
-  }, [annotations, totalFrames]);
-
   const getAllAnnotations = useCallback(() => {
     // Include current frame keypoints
     const allAnnotations = { ...annotations };
@@ -286,8 +277,6 @@ export function useAnnotationState(
     removeKeypoint,
     loadStoredVideo,
     getResolution,
-    getAnnotationCount,
-    getProgress,
     getAllAnnotations,
     saveCurrentFrame,
     autoSaveAnnotations,

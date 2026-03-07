@@ -47,8 +47,6 @@ function App() {
     removeKeypoint,
     loadStoredVideo,
     getResolution,
-    getAnnotationCount,
-    getProgress,
     getAllAnnotations,
     seekFrame,
   } = useAnnotationState(videoRef, keypointDefinitions);
@@ -116,10 +114,9 @@ function App() {
           activeKeypoint={activeKeypoint}
           setActiveKeypoint={setActiveKeypoint}
           keypoints={keypoints}
-          annotationCount={getAnnotationCount()}
-          progress={getProgress()}
           onRemoveKeypoint={removeKeypoint}
           keypointDefinitions={keypointDefinitions}
+          behaviorDefinitions={behaviorDefinitions}
         />
 
         <div className="flex-1 flex flex-col">

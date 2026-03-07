@@ -1,24 +1,23 @@
-import { Check, X } from 'lucide-react';
-import type { Keypoint, KeypointDefinition } from '../types';
+import { useState } from 'react';
+import { Check, ChevronDown, ChevronRight, X } from 'lucide-react';
+import type { BehaviorDefinition, Keypoint, KeypointDefinition } from '../types';
 
 interface KeypointSidebarProps {
   activeKeypoint: number;
   setActiveKeypoint: (index: number) => void;
   keypoints: Record<string, Keypoint>;
-  annotationCount: number;
-  progress: number;
   onRemoveKeypoint: (keypointName?: string) => void;
   keypointDefinitions: KeypointDefinition[];
+  behaviorDefinitions: BehaviorDefinition[];
 }
 
 export function KeypointSidebar({
   activeKeypoint,
   setActiveKeypoint,
   keypoints,
-  annotationCount,
-  progress,
   onRemoveKeypoint,
   keypointDefinitions,
+  behaviorDefinitions,
 }: KeypointSidebarProps) {
   return (
     <aside className="w-72 bg-slate-800 border-r border-slate-700 flex flex-col">
@@ -86,12 +85,25 @@ export function KeypointSidebar({
         </div>
       </div>
 
-      {/* Shortcuts Panel */}
-      <div className="p-4 border-t border-slate-700">
-        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-          Keyboard Shortcuts
-        </h4>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+      <ShortcutsPanel behaviorDefinitions={behaviorDefinitions} />
+    </aside>
+  );
+}
+
+function ShortcutsPanel({ behaviorDefinitions }: { behaviorDefinitions: BehaviorDefinition[] }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="border-t border-slate-700">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full p-4 flex items-center justify-between text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-300 transition-colors"
+      >
+        Keyboard Shortcuts
+        {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+      </button>
+      {isOpen && (
+        <div className="px-4 pb-4 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
           <ShortcutItem keys={['1', '-', '0']} action="Select keypoint" />
           <ShortcutItem keys={['Click']} action="Place point" />
           <ShortcutItem keys={['Space']} action="Next frame" />
@@ -100,26 +112,15 @@ export function KeypointSidebar({
           <ShortcutItem keys={['C']} action="Copy previous" />
           <ShortcutItem keys={['Del']} action="Remove point" />
           <ShortcutItem keys={['⌘', 'S']} action="Export" />
+          {behaviorDefinitions.map((b) => (
+            <ShortcutItem key={b.id} keys={[b.key.toUpperCase()]} action={b.name} />
+          ))}
+          <ShortcutItem keys={['Esc']} action="Stop recording" />
+          <ShortcutItem keys={['⌘', 'Z']} action="Undo" />
+          <ShortcutItem keys={['⌘', '⇧', 'Z']} action="Redo" />
         </div>
-      </div>
-
-      {/* Progress Panel */}
-      <div className="p-4 border-t border-slate-700 bg-slate-800/80">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-slate-400">Progress</span>
-          <span className="text-sm font-mono text-emerald-400">{progress}%</span>
-        </div>
-        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <p className="text-xs text-slate-500 mt-2">
-          {annotationCount} frames annotated
-        </p>
-      </div>
-    </aside>
+      )}
+    </div>
   );
 }
 
