@@ -41,15 +41,24 @@ Prerequisites:
 - Rust toolchain (stable) and platform-specific Tauri dependencies
 
 ```bash
+# Sync the desktop/app version from the root VERSION file
+npm run sync:version
+
 # Run the desktop app in dev mode (starts Vite + Tauri shell)
 npm run tauri:dev
 
-# Build desktop installers (macOS/Windows)
+# Build desktop installers
 npm run tauri:build
 ```
 
 Notes:
 - The app uses IndexedDB; data persists per-user per-app in the Tauri webview.
+
+## Release CI
+
+- Desktop releases are driven by the root `VERSION` file.
+- Pushing a commit to `main` that updates `VERSION` triggers the GitHub Actions release workflow.
+- The release workflow creates a `v<version>` tag, builds installers on macOS, Windows, and Linux, and publishes them to a GitHub Release with short install notes.
 
 ## Keyboard Shortcuts
 

@@ -1,0 +1,197 @@
+name: Tauri Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - VERSION
+
+jobs:
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: version
+        shell: bash
+        run: |
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "VERSION must be a valid semver value, got: $VERSION" >&2
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Fail if tag already exists
+        shell: bash
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if [[ -n "$(git ls-remote --tags origin "refs/tags/$TAG")" ]]; then
+            echo "Tag $TAG already exists on origin" >&2
+            exit 1
+          fi
+
+      - name: Create and push tag
+        shell: bash
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+  build:
+    name: Build ${{ matrix.label }}
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS
+            os: macos-latest
+            artifact_name: bundles-macos
+            bundle_paths: |
+              src-tauri/target/release/bundle/**/*.dmg
+          - label: Windows
+            os: windows-latest
+            artifact_name: bundles-windows
+            bundle_paths: |
+              src-tauri/target/release/bundle/**/*.msi
+              src-tauri/target/release/bundle/**/*-setup.exe
+          - label: Linux
+            os: ubuntu-22.04
+            artifact_name: bundles-linux
+            bundle_paths: |
+              src-tauri/target/release/bundle/**/*.AppImage
+              src-tauri/target/release/bundle/**/*.deb
+              src-tauri/target/release/bundle/**/*.rpm
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            file \
+            libayatana-appindicator3-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            librsvg2-dev \
+            libssl-dev \
+            patchelf \
+            rpm \
+            wget
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Tauri installer
+        run: npm run tauri:build
+
+      - name: Upload release bundles
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.bundle_paths }}
+          if-no-files-found: error
+
+  release:
+    name: Publish Release
+    needs:
+      - prepare
+      - build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Write release notes
+        shell: bash
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          cat <<EOF > release-notes.md
+          ## BehavLog ${VERSION}
+
+          Cross-platform Tauri desktop installers built from \`${TAG}\`.
+
+          ## Install notes
+
+          - macOS: Download the \`.dmg\`, open it, and drag BehavLog into your Applications folder.
+          - Windows: Prefer the \`.msi\` installer for standard installs. The \`-setup.exe\` asset is also attached when available.
+          - Linux: Use the package that fits your system: \`.deb\` for Debian/Ubuntu, \`.rpm\` for Fedora/RHEL, or \`.AppImage\` for a portable install.
+          EOF
+
+      - name: Create or update GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          mapfile -t assets < <(find release-assets -type f \( \
+            -name '*.dmg' -o \
+            -name '*.msi' -o \
+            -name '*-setup.exe' -o \
+            -name '*.AppImage' -o \
+            -name '*.deb' -o \
+            -name '*.rpm' \
+          \))
+
+          if [[ "${#assets[@]}" -eq 0 ]]; then
+            echo "No installer assets were found to publish" >&2
+            exit 1
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" \
+              --title "BehavLog ${TAG}" \
+              --notes-file release-notes.md
+          else
+            gh release create "$TAG" \
+              --title "BehavLog ${TAG}" \
+              --notes-file release-notes.md
+          fi
+
+          gh release upload "$TAG" "${assets[@]}" --clobber
