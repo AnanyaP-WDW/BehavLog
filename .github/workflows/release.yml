@@ -167,6 +167,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ needs.prepare.outputs.tag }}
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
@@ -184,14 +185,16 @@ jobs:
             exit 1
           fi
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
+          if gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
             gh release edit "$TAG" \
+              --repo "$GH_REPO" \
               --title "BehavLog ${TAG}" \
               --notes-file release-notes.md
           else
             gh release create "$TAG" \
+              --repo "$GH_REPO" \
               --title "BehavLog ${TAG}" \
               --notes-file release-notes.md
           fi
 
-          gh release upload "$TAG" "${assets[@]}" --clobber
+          gh release upload "$TAG" "${assets[@]}" --repo "$GH_REPO" --clobber
